@@ -143,6 +143,59 @@ persistence:
                     keyFile: {{ default .Env.SQL_CERT_KEY "" }}
                     enableHostVerification: {{ default .Env.SQL_HOST_VERIFICATION "false" }}
                     serverName: {{ default .Env.SQL_HOST_NAME "" }}
+        {{- else if eq $db "mongodb" }}
+        default:
+            mongodb:
+                pluginName: "mongodb"
+                databaseName: "{{ default .Env.DBNAME "temporal" }}"
+                connectAddr: "{{ default .Env.MONGODB_SEEDS "" }}:{{ default .Env.MONGODB_PORT "27017" }}"
+                username: "{{ default .Env.MONGODB_USER "" }}"
+                password: "{{ default .Env.MONGODB_PWD "" }}"
+                maxPoolSize: {{ default .Env.MONGODB_MAX_POOL_SIZE "20" }}
+                minPoolSize: {{ default .Env.MONGODB_MIN_POOL_SIZE "5" }}
+                maxConnIdleTime: {{ default .Env.MONGODB_MAX_CONN_IDLE_TIME "1h" }}
+                writeConcern: "{{ default .Env.MONGODB_WRITE_CONCERN "majority" }}"
+                readConcern: "{{ default .Env.MONGODB_READ_CONCERN "majority" }}"
+                readPreference: "{{ default .Env.MONGODB_READ_PREFERENCE "primary" }}"
+                {{- if .Env.MONGODB_TLS_ENABLED }}
+                tls:
+                    enabled: {{ default .Env.MONGODB_TLS_ENABLED "false" }}
+                    caFile: {{ default .Env.MONGODB_CA "" }}
+                    certFile: {{ default .Env.MONGODB_CERT "" }}
+                    keyFile: {{ default .Env.MONGODB_CERT_KEY "" }}
+                    enableHostVerification: {{ default .Env.MONGODB_HOST_VERIFICATION "false" }}
+                    serverName: {{ default .Env.MONGODB_HOST_NAME "" }}
+                {{- end }}
+        visibility:
+            mongodb:
+                {{ $visibility_seeds_default := default .Env.MONGODB_SEEDS "" }}
+                {{ $visibility_seeds := default .Env.VISIBILITY_MONGODB_SEEDS $visibility_seeds_default }}
+                {{ $visibility_port_default := default .Env.MONGODB_PORT "27017" }}
+                {{ $visibility_port := default .Env.VISIBILITY_MONGODB_PORT $visibility_port_default }}
+                {{ $visibility_user_default := default .Env.MONGODB_USER "" }}
+                {{ $visibility_user := default .Env.VISIBILITY_MONGODB_USER $visibility_user_default }}
+                {{ $visibility_pwd_default := default .Env.MONGODB_PWD "" }}
+                {{ $visibility_pwd := default .Env.VISIBILITY_MONGODB_PWD $visibility_pwd_default }}
+                pluginName: "mongodb"
+                databaseName: "{{ default .Env.VISIBILITY_DBNAME "temporal_visibility" }}"
+                connectAddr: "{{ $visibility_seeds }}:{{ $visibility_port }}"
+                username: "{{ $visibility_user }}"
+                password: "{{ $visibility_pwd }}"
+                maxPoolSize: {{ default .Env.MONGODB_VIS_MAX_POOL_SIZE "10" }}
+                minPoolSize: {{ default .Env.MONGODB_VIS_MIN_POOL_SIZE "2" }}
+                maxConnIdleTime: {{ default .Env.MONGODB_VIS_MAX_CONN_IDLE_TIME "1h" }}
+                writeConcern: "{{ default .Env.MONGODB_WRITE_CONCERN "majority" }}"
+                readConcern: "{{ default .Env.MONGODB_READ_CONCERN "majority" }}"
+                readPreference: "{{ default .Env.MONGODB_READ_PREFERENCE "primary" }}"
+                {{- if .Env.MONGODB_TLS_ENABLED }}
+                tls:
+                    enabled: {{ default .Env.MONGODB_TLS_ENABLED "false" }}
+                    caFile: {{ default .Env.MONGODB_CA "" }}
+                    certFile: {{ default .Env.MONGODB_CERT "" }}
+                    keyFile: {{ default .Env.MONGODB_CERT_KEY "" }}
+                    enableHostVerification: {{ default .Env.MONGODB_HOST_VERIFICATION "false" }}
+                    serverName: {{ default .Env.MONGODB_HOST_NAME "" }}
+                {{- end }}
         {{- end }}
         {{- if eq $es "true" }}
         es-visibility:

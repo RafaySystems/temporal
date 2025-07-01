@@ -1,0 +1,215 @@
+package mongodb
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	commonpb "go.temporal.io/api/common/v1"
+	enumspb "go.temporal.io/api/enums/v1"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
+	p "go.temporal.io/server/common/persistence"
+)
+
+type (
+	// ClusterMetadataStore implements the ClusterMetadataStore interface for MongoDB
+	ClusterMetadataStore struct {
+		client     *mongo.Client
+		database   *mongo.Database
+		collection *mongo.Collection
+		logger     log.Logger
+	}
+
+	// ClusterMetadataDocument represents a cluster metadata document in MongoDB
+	ClusterMetadataDocument struct {
+		ClusterName             string    `bson:"_id"`
+		ClusterMetadata         []byte    `bson:"cluster_metadata,omitempty"`
+		ClusterMetadataEncoding string    `bson:"cluster_metadata_encoding,omitempty"`
+		Version                 int64     `bson:"version"`
+		CreatedAt               time.Time `bson:"created_at"`
+		UpdatedAt               time.Time `bson:"updated_at"`
+	}
+
+	// ClusterMemberDocument represents a cluster member document in MongoDB
+	ClusterMemberDocument struct {
+		Role          int32     `bson:"role"`
+		HostID        string    `bson:"host_id"`
+		RPCAddress    string    `bson:"rpc_address"`
+		RPCPort       uint16    `bson:"rpc_port"`
+		SessionStart  time.Time `bson:"session_start"`
+		LastHeartbeat time.Time `bson:"last_heartbeat"`
+		RecordExpiry  time.Time `bson:"record_expiry"`
+		CreatedAt     time.Time `bson:"created_at"`
+	}
+)
+
+// NewClusterMetadataStore creates a new MongoDB cluster metadata store
+func NewClusterMetadataStore(database *mongo.Database, logger log.Logger) *ClusterMetadataStore {
+	return &ClusterMetadataStore{
+		client:     database.Client(),
+		database:   database,
+		collection: database.Collection("cluster_metadata"),
+		logger:     logger,
+	}
+}
+
+// Close closes the cluster metadata store
+func (s *ClusterMetadataStore) Close() {
+	// MongoDB client is managed by the factory
+}
+
+// GetName returns the name of the cluster metadata store
+func (s *ClusterMetadataStore) GetName() string {
+	return "mongodb-cluster-metadata-store"
+}
+
+// ListClusterMetadata lists cluster metadata
+func (s *ClusterMetadataStore) ListClusterMetadata(ctx context.Context, request *p.InternalListClusterMetadataRequest) (*p.InternalListClusterMetadataResponse, error) {
+	filter := bson.M{}
+
+	opts := options.Find().
+		SetSort(bson.D{{"_id", 1}}).
+		SetLimit(int64(request.PageSize))
+
+	if len(request.NextPageToken) > 0 {
+		// In a real implementation, you'd decode the page token
+		// and use it for pagination
+	}
+
+	cursor, err := s.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list cluster metadata: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var clusterMetadata []*p.InternalGetClusterMetadataResponse
+	for cursor.Next(ctx) {
+		var doc ClusterMetadataDocument
+		if err := cursor.Decode(&doc); err != nil {
+			s.logger.Error("failed to decode cluster metadata document", tag.Error(err))
+			continue
+		}
+
+		encodingType, err := enumspb.EncodingTypeFromString(doc.ClusterMetadataEncoding)
+		if err != nil {
+			encodingType = enumspb.ENCODING_TYPE_UNSPECIFIED
+		}
+
+		clusterMetadata = append(clusterMetadata, &p.InternalGetClusterMetadataResponse{
+			ClusterMetadata: &commonpb.DataBlob{
+				Data:         doc.ClusterMetadata,
+				EncodingType: encodingType,
+			},
+			Version: doc.Version,
+		})
+	}
+
+	return &p.InternalListClusterMetadataResponse{
+		ClusterMetadata: clusterMetadata,
+	}, nil
+}
+
+// GetClusterMetadata retrieves cluster metadata
+func (s *ClusterMetadataStore) GetClusterMetadata(ctx context.Context, request *p.InternalGetClusterMetadataRequest) (*p.InternalGetClusterMetadataResponse, error) {
+	filter := bson.M{
+		"_id": request.ClusterName,
+	}
+
+	var doc ClusterMetadataDocument
+	err := s.collection.FindOne(ctx, filter).Decode(&doc)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, &p.ConditionFailedError{
+				Msg: "cluster metadata not found",
+			}
+		}
+		return nil, fmt.Errorf("failed to get cluster metadata: %w", err)
+	}
+
+	encodingType, err := enumspb.EncodingTypeFromString(doc.ClusterMetadataEncoding)
+	if err != nil {
+		encodingType = enumspb.ENCODING_TYPE_UNSPECIFIED
+	}
+
+	return &p.InternalGetClusterMetadataResponse{
+		ClusterMetadata: &commonpb.DataBlob{
+			Data:         doc.ClusterMetadata,
+			EncodingType: encodingType,
+		},
+		Version: doc.Version,
+	}, nil
+}
+
+// SaveClusterMetadata saves cluster metadata
+func (s *ClusterMetadataStore) SaveClusterMetadata(ctx context.Context, request *p.InternalSaveClusterMetadataRequest) (bool, error) {
+	now := time.Now()
+	doc := &ClusterMetadataDocument{
+		ClusterName:             request.ClusterName,
+		ClusterMetadata:         request.ClusterMetadata.Data,
+		ClusterMetadataEncoding: request.ClusterMetadata.EncodingType.String(),
+		Version:                 request.Version,
+		CreatedAt:               now,
+		UpdatedAt:               now,
+	}
+
+	// Use upsert to handle both create and update cases
+	filter := bson.M{
+		"_id": doc.ClusterName,
+	}
+
+	update := bson.M{
+		"$set": doc,
+		"$setOnInsert": bson.M{
+			"created_at": now,
+		},
+	}
+
+	opts := options.Update().SetUpsert(true)
+	_, err := s.collection.UpdateOne(ctx, filter, update, opts)
+	if err != nil {
+		return false, fmt.Errorf("failed to save cluster metadata: %w", err)
+	}
+
+	return true, nil
+}
+
+// DeleteClusterMetadata deletes cluster metadata
+func (s *ClusterMetadataStore) DeleteClusterMetadata(ctx context.Context, request *p.InternalDeleteClusterMetadataRequest) error {
+	filter := bson.M{
+		"_id": request.ClusterName,
+	}
+
+	_, err := s.collection.DeleteOne(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("failed to delete cluster metadata: %w", err)
+	}
+
+	return nil
+}
+
+// GetClusterMembers retrieves cluster members
+func (s *ClusterMetadataStore) GetClusterMembers(ctx context.Context, request *p.GetClusterMembersRequest) (*p.GetClusterMembersResponse, error) {
+	// This is a simplified implementation
+	// In a real implementation, you'd handle getting cluster members
+	return &p.GetClusterMembersResponse{
+		ActiveMembers: []*p.ClusterMember{},
+	}, nil
+}
+
+// UpsertClusterMembership upserts cluster membership
+func (s *ClusterMetadataStore) UpsertClusterMembership(ctx context.Context, request *p.UpsertClusterMembershipRequest) error {
+	// This is a simplified implementation
+	// In a real implementation, you'd handle upserting cluster membership
+	return nil
+}
+
+// PruneClusterMembership prunes cluster membership
+func (s *ClusterMetadataStore) PruneClusterMembership(ctx context.Context, request *p.PruneClusterMembershipRequest) error {
+	// This is a simplified implementation
+	// In a real implementation, you'd handle pruning cluster membership
+	return nil
+}

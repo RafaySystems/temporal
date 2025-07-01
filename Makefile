@@ -3,7 +3,7 @@
 install: bins
 
 # Rebuild binaries (used by Dockerfile).
-bins: temporal-server temporal-cassandra-tool temporal-sql-tool tdbg
+bins: temporal-server temporal-cassandra-tool temporal-sql-tool temporal-mongodb-tool tdbg
 
 # Install all tools, recompile proto files, run all possible checks and tests (long but comprehensive).
 all: clean proto bins check test
@@ -317,6 +317,7 @@ clean-bins:
 	@rm -f temporal-server
 	@rm -f temporal-server-debug
 	@rm -f temporal-cassandra-tool
+	@rm -f temporal-mongodb-tool
 	@rm -f tdbg
 	@rm -f temporal-sql-tool
 
@@ -339,6 +340,10 @@ temporal-sql-tool: $(ALL_SRC)
 temporal-server-debug: $(ALL_SRC)
 	@printf $(COLOR) "Build temporal-server-debug with CGO_ENABLED=$(CGO_ENABLED) for $(GOOS)/$(GOARCH)..."
 	CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_TAG_FLAG),TEMPORAL_DEBUG -o temporal-server-debug ./cmd/server
+
+temporal-mongodb-tool: $(ALL_SRC)
+	@printf $(COLOR) "Build temporal-mongodb-tool with CGO_ENABLED=$(CGO_ENABLED) for $(GOOS)/$(GOARCH)..."
+	CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_TAG_FLAG) -o temporal-mongodb-tool ./schema/mongodb/cmd/schema
 
 ##### Checks #####
 goimports: fmt-imports $(GOIMPORTS)
@@ -541,6 +546,11 @@ install-schema-xdc: temporal-cassandra-tool
 	curl -X PUT "http://127.0.0.1:9200/temporal_visibility_v1_dev_cluster_b" --write-out "\n"
 	curl -X PUT "http://127.0.0.1:9200/temporal_visibility_v1_dev_cluster_c" --write-out "\n"
 
+install-schema-mongodb: temporal-mongodb-tool
+	@printf $(COLOR) "Install MongoDB schema..."
+	./temporal-mongodb-tool -uri mongodb://localhost:27017 -database $(TEMPORAL_DB) create
+	./temporal-mongodb-tool -uri mongodb://localhost:27017 -database $(TEMPORAL_DB) validate
+
 ##### Run server #####
 DOCKER_COMPOSE_FILES     := -f ./develop/docker-compose/docker-compose.yml -f ./develop/docker-compose/docker-compose.$(GOOS).yml
 DOCKER_COMPOSE_CDC_FILES := -f ./develop/docker-compose/docker-compose.cdc.yml -f ./develop/docker-compose/docker-compose.cdc.$(GOOS).yml
@@ -594,6 +604,9 @@ start-sqlite: temporal-server
 
 start-sqlite-file: temporal-server
 	./temporal-server --env development-sqlite-file --allow-no-auth start
+
+start-mongodb: temporal-server
+	./temporal-server --env development-mongodb --allow-no-auth start
 
 start-xdc-cluster-a: temporal-server
 	./temporal-server --env development-cluster-a --allow-no-auth start

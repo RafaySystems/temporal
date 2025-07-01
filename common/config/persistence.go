@@ -134,6 +134,8 @@ func (ds *DataStore) GetIndexName() string {
 		return ds.SQL.DatabaseName
 	case ds.Cassandra != nil:
 		return ds.Cassandra.Keyspace
+	case ds.MongoDB != nil:
+		return ds.MongoDB.DatabaseName
 	case ds.Elasticsearch != nil:
 		return ds.Elasticsearch.GetVisibilityIndex()
 	default:
@@ -150,6 +152,9 @@ func (ds *DataStore) Validate() error {
 	if ds.Cassandra != nil {
 		storeConfigCount++
 	}
+	if ds.MongoDB != nil {
+		storeConfigCount++
+	}
 	if ds.CustomDataStoreConfig != nil {
 		storeConfigCount++
 	}
@@ -159,7 +164,7 @@ func (ds *DataStore) Validate() error {
 	if storeConfigCount != 1 {
 		return errors.New(
 			"must provide config for one and only one datastore: " +
-				"elasticsearch, cassandra, sql or custom store",
+				"elasticsearch, cassandra, sql, mongodb or custom store",
 		)
 	}
 
@@ -168,6 +173,11 @@ func (ds *DataStore) Validate() error {
 	}
 	if ds.Cassandra != nil {
 		if err := ds.Cassandra.validate(); err != nil {
+			return err
+		}
+	}
+	if ds.MongoDB != nil {
+		if err := ds.MongoDB.validate(); err != nil {
 			return err
 		}
 	}
@@ -254,6 +264,22 @@ func (c *CassandraConsistencySettings) validate() error {
 		if err != nil {
 			return fmt.Errorf("bad cassandra serial consistency: %v", err)
 		}
+	}
+
+	return nil
+}
+
+func (m *MongoDB) validate() error {
+	if m == nil {
+		return nil
+	}
+
+	if m.ConnectAddr == "" {
+		return fmt.Errorf("mongodb connectAddr is required")
+	}
+
+	if m.DatabaseName == "" {
+		return fmt.Errorf("mongodb databaseName is required")
 	}
 
 	return nil

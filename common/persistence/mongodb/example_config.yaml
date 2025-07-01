@@ -1,0 +1,118 @@
+# Example Temporal configuration with MongoDB persistence
+# This file demonstrates how to configure Temporal to use MongoDB as the persistence backend
+
+log:
+  stdout: true
+  level: info
+
+persistence:
+  defaultStore: mongodb
+  visibilityStore: mongodb
+  numHistoryShards: 4
+  datastores:
+    mongodb:
+      mongodb:
+        # MongoDB connection configuration
+        connectAddr: "localhost:27017"
+        databaseName: "temporal"
+        
+        # Authentication (optional)
+        username: "temporal"
+        password: "your_secure_password"
+        
+        # Connection pool settings
+        maxConns: 100
+        maxIdleConns: 10
+        maxConnLifetime: 30m
+        connectTimeout: 5s
+        
+        # MongoDB read/write concerns
+        writeConcern: "majority"
+        readConcern: "majority"
+        readPreference: "primary"
+        
+        # TLS configuration (optional)
+        tls:
+          enabled: false
+          certFile: ""
+          keyFile: ""
+          caFile: ""
+          serverName: ""
+          disableHostVerification: false
+
+# Cluster configuration
+clusterMetadata:
+  enableGlobalNamespace: false
+  failoverVersionIncrement: 10
+  masterClusterName: "temporal-dev"
+  currentClusterName: "temporal-dev"
+  clusterInformation:
+    temporal-dev:
+      enabled: true
+      initialFailoverVersion: 1
+      rpcName: "frontend"
+      rpcAddress: "127.0.0.1:7233"
+
+# Services configuration
+services:
+  frontend:
+    rpc:
+      grpcPort: 7233
+      membershipPort: 6933
+      bindOnLocalHost: false
+  matching:
+    rpc:
+      grpcPort: 7235
+      membershipPort: 6935
+      bindOnLocalHost: false
+  history:
+    rpc:
+      grpcPort: 7234
+      membershipPort: 6934
+      bindOnLocalHost: false
+  worker:
+    rpc:
+      grpcPort: 7239
+      membershipPort: 6939
+      bindOnLocalHost: false
+
+# Global configuration
+global:
+  membership:
+    maxJoinDuration: 30s
+  pprof:
+    port: 7936
+  tls:
+    internode:
+      client:
+        serverName: "temporal"
+    frontend:
+      client:
+        serverName: "temporal"
+
+# Namespace defaults
+namespaceDefaults:
+  archival:
+    history:
+      state: "enabled"
+      URI: "file:///tmp/temporal_archival/development"
+    visibility:
+      state: "enabled"
+      URI: "file:///tmp/temporal_archival/development"
+
+# Archival configuration
+archival:
+  history:
+    state: "enabled"
+    enableRead: true
+    provider:
+      filestore:
+        fileMode: "0666"
+        dirMode: "0766"
+  visibility:
+    state: "enabled"
+    enableRead: true
+    provider:
+      filestore:
+        fileMode: "0666"
+        dirMode: "0766" 

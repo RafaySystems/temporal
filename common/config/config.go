@@ -276,6 +276,8 @@ type (
 		Cassandra *Cassandra `yaml:"cassandra"`
 		// SQL contains the config for a SQL based datastore
 		SQL *SQL `yaml:"sql"`
+		// MongoDB contains the config for a MongoDB datastore
+		MongoDB *MongoDB `yaml:"mongodb"`
 		// Custom contains the config for custom datastore implementation
 		CustomDataStoreConfig *CustomDatastoreConfig `yaml:"customDatastore"`
 		// ElasticSearch contains the config for a ElasticSearch datastore
@@ -594,6 +596,34 @@ type (
 		RefreshInterval time.Duration `yaml:"refreshInterval"`
 	}
 	// @@@SNIPEND
+
+	// MongoDB contains configuration to connect to MongoDB cluster
+	MongoDB struct {
+		// ConnectAddr is the MongoDB connection address (e.g., "localhost:27017")
+		ConnectAddr string `yaml:"connectAddr" validate:"nonzero"`
+		// DatabaseName is the name of the MongoDB database to use
+		DatabaseName string `yaml:"databaseName" validate:"nonzero"`
+		// Username is the MongoDB username used for authentication
+		Username string `yaml:"username"`
+		// Password is the MongoDB password used for authentication
+		Password string `yaml:"password"`
+		// ConnectTimeout is a timeout for initial dial to MongoDB server
+		ConnectTimeout time.Duration `yaml:"connectTimeout"`
+		// MaxConns is the max number of connections to this datastore
+		MaxConns int `yaml:"maxConns"`
+		// MaxIdleConns is the max number of idle connections to this datastore
+		MaxIdleConns int `yaml:"maxIdleConns"`
+		// MaxConnLifetime is the maximum time a connection can be alive
+		MaxConnLifetime time.Duration `yaml:"maxConnLifetime"`
+		// TLS configuration
+		TLS *auth.TLS `yaml:"tls"`
+		// WriteConcern is the MongoDB write concern (e.g., "majority", "1")
+		WriteConcern string `yaml:"writeConcern"`
+		// ReadConcern is the MongoDB read concern (e.g., "majority", "local")
+		ReadConcern string `yaml:"readConcern"`
+		// ReadPreference is the MongoDB read preference (e.g., "primary", "secondary")
+		ReadPreference string `yaml:"readPreference"`
+	}
 )
 
 const (
