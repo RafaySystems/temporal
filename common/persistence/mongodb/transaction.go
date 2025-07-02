@@ -191,14 +191,14 @@ func (tm *TransactionManager) ExecuteWithRetry(ctx context.Context, fn func(*Tra
 
 		// Execute the transaction function
 		if err := fn(txn); err != nil {
-			txn.Abort()
+			_ = txn.Abort()
 			txn.Close()
 			return err
 		}
 
 		// Execute operations
 		if err := txn.Execute(); err != nil {
-			txn.Abort()
+			_ = txn.Abort()
 			txn.Close()
 
 			// Check if it's a retryable error

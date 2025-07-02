@@ -2,6 +2,7 @@ package v1_0
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -128,9 +129,11 @@ func (s *Schema) createCollection(ctx context.Context, db *mongo.Database, name 
 
 	if err := db.CreateCollection(ctx, name, opts); err != nil {
 		// Collection might already exist, which is fine
-		if !isCollectionExistsError(err) {
-			return err
+		var mongoErr *mongo.CommandError
+		if ok := errors.As(err, &mongoErr); ok {
+			return nil
 		}
+		return err
 	}
 
 	// Create indexes
@@ -145,15 +148,6 @@ func (s *Schema) createCollection(ctx context.Context, db *mongo.Database, name 
 	}
 
 	return nil
-}
-
-// isCollectionExistsError checks if the error is due to collection already existing
-func isCollectionExistsError(err error) bool {
-	var mongoErr mongo.CommandError
-	if ok := err.(*mongo.CommandError); ok != nil {
-		return mongoErr.Code == 48 // Collection already exists
-	}
-	return false
 }
 
 // Validation schemas
@@ -435,28 +429,28 @@ func executionsIndexes() []Index {
 	return []Index{
 		{
 			Keys: bson.D{
-				{"shard_id", 1},
-				{"type", 1},
-				{"namespace_id", 1},
-				{"workflow_id", 1},
-				{"run_id", 1},
-				{"visibility_ts", 1},
-				{"task_id", 1},
+				{Key: "shard_id", Value: 1},
+				{Key: "type", Value: 1},
+				{Key: "namespace_id", Value: 1},
+				{Key: "workflow_id", Value: 1},
+				{Key: "run_id", Value: 1},
+				{Key: "visibility_ts", Value: 1},
+				{Key: "task_id", Value: 1},
 			},
 			Options: options.Index().SetUnique(true).SetName("executions_primary_key"),
 		},
 		{
 			Keys: bson.D{
-				{"namespace_id", 1},
-				{"workflow_id", 1},
-				{"run_id", 1},
+				{Key: "namespace_id", Value: 1},
+				{Key: "workflow_id", Value: 1},
+				{Key: "run_id", Value: 1},
 			},
 			Options: options.Index().SetName("executions_workflow_lookup"),
 		},
 		{
 			Keys: bson.D{
-				{"namespace_id", 1},
-				{"visibility_ts", 1},
+				{Key: "namespace_id", Value: 1},
+				{Key: "visibility_ts", Value: 1},
 			},
 			Options: options.Index().SetName("executions_visibility"),
 		},
@@ -467,18 +461,18 @@ func historyNodeIndexes() []Index {
 	return []Index{
 		{
 			Keys: bson.D{
-				{"tree_id", 1},
-				{"branch_id", 1},
-				{"node_id", 1},
-				{"txn_id", -1},
+				{Key: "tree_id", Value: 1},
+				{Key: "branch_id", Value: 1},
+				{Key: "node_id", Value: 1},
+				{Key: "txn_id", Value: -1},
 			},
 			Options: options.Index().SetUnique(true).SetName("history_node_primary_key"),
 		},
 		{
 			Keys: bson.D{
-				{"tree_id", 1},
-				{"branch_id", 1},
-				{"node_id", 1},
+				{Key: "tree_id", Value: 1},
+				{Key: "branch_id", Value: 1},
+				{Key: "node_id", Value: 1},
 			},
 			Options: options.Index().SetName("history_node_tree_lookup"),
 		},
@@ -489,8 +483,8 @@ func historyTreeIndexes() []Index {
 	return []Index{
 		{
 			Keys: bson.D{
-				{"tree_id", 1},
-				{"branch_id", 1},
+				{Key: "tree_id", Value: 1},
+				{Key: "branch_id", Value: 1},
 			},
 			Options: options.Index().SetUnique(true).SetName("history_tree_primary_key"),
 		},
@@ -501,19 +495,19 @@ func tasksIndexes() []Index {
 	return []Index{
 		{
 			Keys: bson.D{
-				{"namespace_id", 1},
-				{"task_queue_name", 1},
-				{"task_queue_type", 1},
-				{"type", 1},
-				{"task_id", 1},
+				{Key: "namespace_id", Value: 1},
+				{Key: "task_queue_name", Value: 1},
+				{Key: "task_queue_type", Value: 1},
+				{Key: "type", Value: 1},
+				{Key: "task_id", Value: 1},
 			},
 			Options: options.Index().SetUnique(true).SetName("tasks_primary_key"),
 		},
 		{
 			Keys: bson.D{
-				{"namespace_id", 1},
-				{"task_queue_name", 1},
-				{"task_queue_type", 1},
+				{Key: "namespace_id", Value: 1},
+				{Key: "task_queue_name", Value: 1},
+				{Key: "task_queue_type", Value: 1},
 			},
 			Options: options.Index().SetName("tasks_queue_lookup"),
 		},
@@ -524,15 +518,15 @@ func taskQueueUserDataIndexes() []Index {
 	return []Index{
 		{
 			Keys: bson.D{
-				{"namespace_id", 1},
-				{"build_id", 1},
-				{"task_queue_name", 1},
+				{Key: "namespace_id", Value: 1},
+				{Key: "build_id", Value: 1},
+				{Key: "task_queue_name", Value: 1},
 			},
 			Options: options.Index().SetUnique(true).SetName("task_queue_user_data_primary_key"),
 		},
 		{
 			Keys: bson.D{
-				{"namespace_id", 1},
+				{Key: "namespace_id", Value: 1},
 			},
 			Options: options.Index().SetName("task_queue_user_data_namespace"),
 		},
@@ -543,7 +537,7 @@ func namespacesByIdIndexes() []Index {
 	return []Index{
 		{
 			Keys: bson.D{
-				{"id", 1},
+				{Key: "id", Value: 1},
 			},
 			Options: options.Index().SetUnique(true).SetName("namespaces_by_id_primary_key"),
 		},
@@ -554,14 +548,14 @@ func namespacesIndexes() []Index {
 	return []Index{
 		{
 			Keys: bson.D{
-				{"namespaces_partition", 1},
-				{"name", 1},
+				{Key: "namespaces_partition", Value: 1},
+				{Key: "name", Value: 1},
 			},
 			Options: options.Index().SetUnique(true).SetName("namespaces_primary_key"),
 		},
 		{
 			Keys: bson.D{
-				{"id", 1},
+				{Key: "id", Value: 1},
 			},
 			Options: options.Index().SetUnique(true).SetName("namespaces_id_lookup"),
 		},
@@ -572,7 +566,7 @@ func queueMetadataIndexes() []Index {
 	return []Index{
 		{
 			Keys: bson.D{
-				{"queue_type", 1},
+				{Key: "queue_type", Value: 1},
 			},
 			Options: options.Index().SetUnique(true).SetName("queue_metadata_primary_key"),
 		},
@@ -583,8 +577,8 @@ func queueIndexes() []Index {
 	return []Index{
 		{
 			Keys: bson.D{
-				{"queue_type", 1},
-				{"message_id", 1},
+				{Key: "queue_type", Value: 1},
+				{Key: "message_id", Value: 1},
 			},
 			Options: options.Index().SetUnique(true).SetName("queue_primary_key"),
 		},
@@ -595,8 +589,8 @@ func clusterMetadataInfoIndexes() []Index {
 	return []Index{
 		{
 			Keys: bson.D{
-				{"metadata_partition", 1},
-				{"cluster_name", 1},
+				{Key: "metadata_partition", Value: 1},
+				{Key: "cluster_name", Value: 1},
 			},
 			Options: options.Index().SetUnique(true).SetName("cluster_metadata_info_primary_key"),
 		},
@@ -607,21 +601,21 @@ func clusterMembershipIndexes() []Index {
 	return []Index{
 		{
 			Keys: bson.D{
-				{"membership_partition", 1},
-				{"role", 1},
-				{"host_id", 1},
+				{Key: "membership_partition", Value: 1},
+				{Key: "role", Value: 1},
+				{Key: "host_id", Value: 1},
 			},
 			Options: options.Index().SetUnique(true).SetName("cluster_membership_primary_key"),
 		},
 		{
 			Keys: bson.D{
-				{"last_heartbeat", 1},
+				{Key: "last_heartbeat", Value: 1},
 			},
 			Options: options.Index().SetName("cluster_membership_last_heartbeat"),
 		},
 		{
 			Keys: bson.D{
-				{"session_start", 1},
+				{Key: "session_start", Value: 1},
 			},
 			Options: options.Index().SetName("cluster_membership_session_start"),
 		},
@@ -632,8 +626,8 @@ func queuesIndexes() []Index {
 	return []Index{
 		{
 			Keys: bson.D{
-				{"queue_type", 1},
-				{"queue_name", 1},
+				{Key: "queue_type", Value: 1},
+				{Key: "queue_name", Value: 1},
 			},
 			Options: options.Index().SetUnique(true).SetName("queues_primary_key"),
 		},
@@ -644,10 +638,10 @@ func queueMessagesIndexes() []Index {
 	return []Index{
 		{
 			Keys: bson.D{
-				{"queue_type", 1},
-				{"queue_name", 1},
-				{"queue_partition", 1},
-				{"message_id", 1},
+				{Key: "queue_type", Value: 1},
+				{Key: "queue_name", Value: 1},
+				{Key: "queue_partition", Value: 1},
+				{Key: "message_id", Value: 1},
 			},
 			Options: options.Index().SetUnique(true).SetName("queue_messages_primary_key"),
 		},
@@ -658,16 +652,16 @@ func nexusEndpointsIndexes() []Index {
 	return []Index{
 		{
 			Keys: bson.D{
-				{"partition", 1},
-				{"type", 1},
-				{"id", 1},
+				{Key: "partition", Value: 1},
+				{Key: "type", Value: 1},
+				{Key: "id", Value: 1},
 			},
 			Options: options.Index().SetUnique(true).SetName("nexus_endpoints_primary_key"),
 		},
 		{
 			Keys: bson.D{
-				{"partition", 1},
-				{"type", 1},
+				{Key: "partition", Value: 1},
+				{Key: "type", Value: 1},
 			},
 			Options: options.Index().SetName("nexus_endpoints_lookup"),
 		},

@@ -275,11 +275,11 @@ func (m *MongoDB) validate() error {
 	}
 
 	if m.ConnectAddr == "" {
-		return fmt.Errorf("mongodb connectAddr is required")
+		return errors.New("mongodb connectAddr is required")
 	}
 
 	if m.DatabaseName == "" {
-		return fmt.Errorf("mongodb databaseName is required")
+		return errors.New("mongodb databaseName is required")
 	}
 
 	return nil

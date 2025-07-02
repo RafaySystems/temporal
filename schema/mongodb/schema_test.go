@@ -25,7 +25,10 @@ func TestSchemaCreation(t *testing.T) {
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
 	require.NoError(t, err)
-	defer client.Disconnect(ctx)
+	defer func() {
+		err := client.Disconnect(ctx)
+		require.NoError(t, err)
+	}()
 
 	// Test database name
 	dbName := "temporal_test"
@@ -63,7 +66,7 @@ func TestSchemaCreation(t *testing.T) {
 
 	// Test sample data insertion
 	t.Run("TestSampleDataInsertion", func(t *testing.T) {
-		testSampleDataInsertion(t, ctx, db)
+		testSampleDataInsertion(ctx, t, db)
 	})
 
 	// Clean up
@@ -72,7 +75,7 @@ func TestSchemaCreation(t *testing.T) {
 }
 
 // testSampleDataInsertion tests inserting and querying sample data
-func testSampleDataInsertion(t *testing.T, ctx context.Context, db *mongo.Database) {
+func testSampleDataInsertion(ctx context.Context, t *testing.T, db *mongo.Database) {
 	// Test executions collection
 	t.Run("ExecutionsCollection", func(t *testing.T) {
 		coll := db.Collection("executions")
@@ -194,7 +197,10 @@ func TestIndexValidation(t *testing.T) {
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
 	require.NoError(t, err)
-	defer client.Disconnect(ctx)
+	defer func() {
+		err := client.Disconnect(ctx)
+		require.NoError(t, err)
+	}()
 
 	dbName := "temporal_test"
 	schema := NewSchema(dbName)
@@ -271,7 +277,10 @@ func TestSchemaValidation(t *testing.T) {
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
 	require.NoError(t, err)
-	defer client.Disconnect(ctx)
+	defer func() {
+		err := client.Disconnect(ctx)
+		require.NoError(t, err)
+	}()
 
 	dbName := "temporal_test"
 	schema := NewSchema(dbName)

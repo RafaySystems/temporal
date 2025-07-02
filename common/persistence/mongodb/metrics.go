@@ -58,89 +58,74 @@ func (om *OperationMetrics) Complete(err error) {
 
 // recordOperationSpecificMetrics records operation-specific metrics
 func (om *OperationMetrics) recordOperationSpecificMetrics(duration time.Duration, err error) {
-	switch om.op {
-	case "create_workflow_execution":
-		om.metrics.handler.Timer("mongodb_create_workflow_execution_latency").Record(duration, om.tags...)
-		if err != nil {
-			om.metrics.handler.Counter("mongodb_create_workflow_execution_error_count").Record(1, om.tags...)
-		}
+	// Define metric mappings to reduce cyclomatic complexity
+	metricMappings := map[string]struct {
+		latencyMetric string
+		errorMetric   string
+	}{
+		"create_workflow_execution": {
+			latencyMetric: "mongodb_create_workflow_execution_latency",
+			errorMetric:   "mongodb_create_workflow_execution_error_count",
+		},
+		"update_workflow_execution": {
+			latencyMetric: "mongodb_update_workflow_execution_latency",
+			errorMetric:   "mongodb_update_workflow_execution_error_count",
+		},
+		"get_workflow_execution": {
+			latencyMetric: "mongodb_get_workflow_execution_latency",
+			errorMetric:   "mongodb_get_workflow_execution_error_count",
+		},
+		"delete_workflow_execution": {
+			latencyMetric: "mongodb_delete_workflow_execution_latency",
+			errorMetric:   "mongodb_delete_workflow_execution_error_count",
+		},
+		"create_task_queue": {
+			latencyMetric: "mongodb_create_task_queue_latency",
+			errorMetric:   "mongodb_create_task_queue_error_count",
+		},
+		"update_task_queue": {
+			latencyMetric: "mongodb_update_task_queue_latency",
+			errorMetric:   "mongodb_update_task_queue_error_count",
+		},
+		"get_task_queue": {
+			latencyMetric: "mongodb_get_task_queue_latency",
+			errorMetric:   "mongodb_get_task_queue_error_count",
+		},
+		"create_tasks": {
+			latencyMetric: "mongodb_create_tasks_latency",
+			errorMetric:   "mongodb_create_tasks_error_count",
+		},
+		"get_tasks": {
+			latencyMetric: "mongodb_get_tasks_latency",
+			errorMetric:   "mongodb_get_tasks_error_count",
+		},
+		"complete_tasks": {
+			latencyMetric: "mongodb_complete_tasks_latency",
+			errorMetric:   "mongodb_complete_tasks_error_count",
+		},
+		"append_history_nodes": {
+			latencyMetric: "mongodb_append_history_nodes_latency",
+			errorMetric:   "mongodb_append_history_nodes_error_count",
+		},
+		"read_history_branch": {
+			latencyMetric: "mongodb_read_history_branch_latency",
+			errorMetric:   "mongodb_read_history_branch_error_count",
+		},
+		"bulk_write": {
+			latencyMetric: "mongodb_bulk_write_latency",
+			errorMetric:   "mongodb_bulk_write_error_count",
+		},
+		"transaction": {
+			latencyMetric: "mongodb_transaction_latency",
+			errorMetric:   "mongodb_transaction_error_count",
+		},
+	}
 
-	case "update_workflow_execution":
-		om.metrics.handler.Timer("mongodb_update_workflow_execution_latency").Record(duration, om.tags...)
+	// Look up metrics for the operation
+	if mapping, exists := metricMappings[om.op]; exists {
+		om.metrics.handler.Timer(mapping.latencyMetric).Record(duration, om.tags...)
 		if err != nil {
-			om.metrics.handler.Counter("mongodb_update_workflow_execution_error_count").Record(1, om.tags...)
-		}
-
-	case "get_workflow_execution":
-		om.metrics.handler.Timer("mongodb_get_workflow_execution_latency").Record(duration, om.tags...)
-		if err != nil {
-			om.metrics.handler.Counter("mongodb_get_workflow_execution_error_count").Record(1, om.tags...)
-		}
-
-	case "delete_workflow_execution":
-		om.metrics.handler.Timer("mongodb_delete_workflow_execution_latency").Record(duration, om.tags...)
-		if err != nil {
-			om.metrics.handler.Counter("mongodb_delete_workflow_execution_error_count").Record(1, om.tags...)
-		}
-
-	case "create_task_queue":
-		om.metrics.handler.Timer("mongodb_create_task_queue_latency").Record(duration, om.tags...)
-		if err != nil {
-			om.metrics.handler.Counter("mongodb_create_task_queue_error_count").Record(1, om.tags...)
-		}
-
-	case "update_task_queue":
-		om.metrics.handler.Timer("mongodb_update_task_queue_latency").Record(duration, om.tags...)
-		if err != nil {
-			om.metrics.handler.Counter("mongodb_update_task_queue_error_count").Record(1, om.tags...)
-		}
-
-	case "get_task_queue":
-		om.metrics.handler.Timer("mongodb_get_task_queue_latency").Record(duration, om.tags...)
-		if err != nil {
-			om.metrics.handler.Counter("mongodb_get_task_queue_error_count").Record(1, om.tags...)
-		}
-
-	case "create_tasks":
-		om.metrics.handler.Timer("mongodb_create_tasks_latency").Record(duration, om.tags...)
-		if err != nil {
-			om.metrics.handler.Counter("mongodb_create_tasks_error_count").Record(1, om.tags...)
-		}
-
-	case "get_tasks":
-		om.metrics.handler.Timer("mongodb_get_tasks_latency").Record(duration, om.tags...)
-		if err != nil {
-			om.metrics.handler.Counter("mongodb_get_tasks_error_count").Record(1, om.tags...)
-		}
-
-	case "complete_tasks":
-		om.metrics.handler.Timer("mongodb_complete_tasks_latency").Record(duration, om.tags...)
-		if err != nil {
-			om.metrics.handler.Counter("mongodb_complete_tasks_error_count").Record(1, om.tags...)
-		}
-
-	case "append_history_nodes":
-		om.metrics.handler.Timer("mongodb_append_history_nodes_latency").Record(duration, om.tags...)
-		if err != nil {
-			om.metrics.handler.Counter("mongodb_append_history_nodes_error_count").Record(1, om.tags...)
-		}
-
-	case "read_history_branch":
-		om.metrics.handler.Timer("mongodb_read_history_branch_latency").Record(duration, om.tags...)
-		if err != nil {
-			om.metrics.handler.Counter("mongodb_read_history_branch_error_count").Record(1, om.tags...)
-		}
-
-	case "bulk_write":
-		om.metrics.handler.Timer("mongodb_bulk_write_latency").Record(duration, om.tags...)
-		if err != nil {
-			om.metrics.handler.Counter("mongodb_bulk_write_error_count").Record(1, om.tags...)
-		}
-
-	case "transaction":
-		om.metrics.handler.Timer("mongodb_transaction_latency").Record(duration, om.tags...)
-		if err != nil {
-			om.metrics.handler.Counter("mongodb_transaction_error_count").Record(1, om.tags...)
+			om.metrics.handler.Counter(mapping.errorMetric).Record(1, om.tags...)
 		}
 	}
 }

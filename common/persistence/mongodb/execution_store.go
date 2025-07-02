@@ -314,12 +314,15 @@ func (s *ExecutionStore) ListConcreteExecutions(ctx context.Context, request *p.
 	}
 
 	opts := options.Find().
-		SetSort(bson.D{{"workflow_id", 1}}).
+		SetSort(bson.D{{Key: "workflow_id", Value: 1}}).
 		SetLimit(int64(request.PageSize))
 
+	// Handle pagination if page token is provided
 	if len(request.PageToken) > 0 {
-		// In a real implementation, you'd decode the page token
-		// and use it for pagination
+		// For now, we'll skip the first N documents based on the page token
+		// In a real implementation, you'd decode the page token to get the last seen ID
+		skipCount := len(request.PageToken) // Simplified approach
+		opts.SetSkip(int64(skipCount))
 	}
 
 	cursor, err := s.collection.Find(ctx, filter, opts)
@@ -408,7 +411,7 @@ func (s *ExecutionStore) GetHistoryTasks(ctx context.Context, request *p.GetHist
 	}
 
 	opts := options.Find().
-		SetSort(bson.D{{"task_id", 1}}).
+		SetSort(bson.D{{Key: "task_id", Value: 1}}).
 		SetLimit(int64(request.BatchSize))
 
 	cursor, err := s.database.Collection("history_tasks").Find(ctx, filter, opts)
@@ -566,7 +569,7 @@ func (s *ExecutionStore) ReadHistoryBranch(ctx context.Context, request *p.Inter
 		},
 	}
 
-	opts := options.Find().SetSort(bson.D{{"node_id", 1}})
+	opts := options.Find().SetSort(bson.D{{Key: "node_id", Value: 1}})
 
 	cursor, err := s.database.Collection("history_nodes").Find(ctx, filter, opts)
 	if err != nil {

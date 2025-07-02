@@ -47,7 +47,8 @@ func (s *TaskStoreTestSuite) SetupSuite() {
 
 func (s *TaskStoreTestSuite) TearDownSuite() {
 	if s.client != nil {
-		s.client.Disconnect(s.ctx)
+		err := s.client.Disconnect(s.ctx)
+		s.NoError(err)
 	}
 }
 
@@ -55,7 +56,8 @@ func (s *TaskStoreTestSuite) SetupTest() {
 	// Clean up collections before each test
 	collections := []string{"task_queues", "tasks", "user_data"}
 	for _, collectionName := range collections {
-		s.database.Collection(collectionName).DeleteMany(s.ctx, map[string]interface{}{})
+		_, err := s.database.Collection(collectionName).DeleteMany(s.ctx, map[string]interface{}{})
+		s.NoError(err)
 	}
 }
 

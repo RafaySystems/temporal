@@ -48,7 +48,8 @@ func (s *ExecutionStoreTestSuite) SetupSuite() {
 
 func (s *ExecutionStoreTestSuite) TearDownSuite() {
 	if s.client != nil {
-		s.client.Disconnect(s.ctx)
+		err := s.client.Disconnect(s.ctx)
+		s.NoError(err)
 	}
 }
 
@@ -56,7 +57,8 @@ func (s *ExecutionStoreTestSuite) SetupTest() {
 	// Clean up collections before each test
 	collections := []string{"workflow_executions", "history_tasks", "history_nodes", "history_branches"}
 	for _, collectionName := range collections {
-		s.database.Collection(collectionName).DeleteMany(s.ctx, map[string]interface{}{})
+		_, err := s.database.Collection(collectionName).DeleteMany(s.ctx, map[string]interface{}{})
+		s.NoError(err)
 	}
 }
 

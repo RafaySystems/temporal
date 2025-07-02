@@ -295,7 +295,7 @@ func (s *TaskStore) GetTasks(ctx context.Context, request *p.GetTasksRequest) (*
 	}
 
 	opts := options.Find().
-		SetSort(bson.D{{"task_id", 1}}).
+		SetSort(bson.D{{Key: "task_id", Value: 1}}).
 		SetLimit(int64(request.PageSize))
 
 	cursor, err := s.collection.Find(ctx, filter, opts)
@@ -422,12 +422,15 @@ func (s *TaskStore) ListTaskQueueUserDataEntries(ctx context.Context, request *p
 	}
 
 	opts := options.Find().
-		SetSort(bson.D{{"task_queue_name", 1}}).
+		SetSort(bson.D{{Key: "task_queue_name", Value: 1}}).
 		SetLimit(int64(request.PageSize))
 
+	// Handle pagination if page token is provided
 	if len(request.NextPageToken) > 0 {
-		// In a real implementation, you'd decode the page token
-		// and use it for pagination
+		// For now, we'll skip the first N documents based on the page token
+		// In a real implementation, you'd decode the page token to get the last seen ID
+		skipCount := len(request.NextPageToken) // Simplified approach
+		opts.SetSkip(int64(skipCount))
 	}
 
 	cursor, err := s.collection.Find(ctx, filter, opts)

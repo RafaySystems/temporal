@@ -185,7 +185,7 @@ func (f *Factory) getDatabase() (*mongo.Database, error) {
 	defer cancel()
 
 	if err := client.Ping(ctx, nil); err != nil {
-		client.Disconnect(context.Background())
+		_ = client.Disconnect(context.Background())
 		return nil, err
 	}
 

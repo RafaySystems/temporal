@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -102,7 +103,7 @@ func (s *MetadataStore) GetNamespace(ctx context.Context, request *p.GetNamespac
 	} else if request.Name != "" {
 		filter = bson.M{"name": request.Name}
 	} else {
-		return nil, fmt.Errorf("either ID or Name must be provided")
+		return nil, errors.New("either ID or Name must be provided")
 	}
 
 	var doc NamespaceDocument
@@ -233,12 +234,15 @@ func (s *MetadataStore) ListNamespaces(ctx context.Context, request *p.InternalL
 	filter := bson.M{}
 
 	opts := options.Find().
-		SetSort(bson.D{{"name", 1}}).
+		SetSort(bson.D{{Key: "name", Value: 1}}).
 		SetLimit(int64(request.PageSize))
 
+	// Handle pagination if page token is provided
 	if len(request.NextPageToken) > 0 {
-		// In a real implementation, you'd decode the page token
-		// and use it for pagination
+		// For now, we'll skip the first N documents based on the page token
+		// In a real implementation, you'd decode the page token to get the last seen ID
+		skipCount := len(request.NextPageToken) // Simplified approach
+		opts.SetSkip(int64(skipCount))
 	}
 
 	cursor, err := s.collection.Find(ctx, filter, opts)

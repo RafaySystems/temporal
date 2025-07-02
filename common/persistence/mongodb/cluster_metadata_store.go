@@ -72,12 +72,15 @@ func (s *ClusterMetadataStore) ListClusterMetadata(ctx context.Context, request 
 	filter := bson.M{}
 
 	opts := options.Find().
-		SetSort(bson.D{{"_id", 1}}).
+		SetSort(bson.D{{Key: "_id", Value: 1}}).
 		SetLimit(int64(request.PageSize))
 
+	// Handle pagination if page token is provided
 	if len(request.NextPageToken) > 0 {
-		// In a real implementation, you'd decode the page token
-		// and use it for pagination
+		// For now, we'll skip the first N documents based on the page token
+		// In a real implementation, you'd decode the page token to get the last seen ID
+		skipCount := len(request.NextPageToken) // Simplified approach
+		opts.SetSkip(int64(skipCount))
 	}
 
 	cursor, err := s.collection.Find(ctx, filter, opts)

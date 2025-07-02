@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -198,7 +199,7 @@ func (bp *BulkProcessor) AddOperation(collection string, opType OperationType, f
 	case <-bp.ctx.Done():
 		// Processor is shutting down
 		if callback != nil {
-			callback(fmt.Errorf("bulk processor is shutting down"))
+			callback(errors.New("bulk processor is shutting down"))
 		}
 	}
 }
@@ -217,7 +218,7 @@ func (bp *BulkProcessor) AddBulkOperation(collection string, operations []Operat
 	case <-bp.ctx.Done():
 		// Processor is shutting down
 		if callback != nil {
-			callback(fmt.Errorf("bulk processor is shutting down"))
+			callback(errors.New("bulk processor is shutting down"))
 		}
 	}
 }

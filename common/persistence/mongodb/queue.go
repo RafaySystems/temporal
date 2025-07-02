@@ -74,7 +74,7 @@ func (q *Queue) EnqueueMessage(ctx context.Context, blob *commonpb.DataBlob) err
 
 	// Get the next message ID
 	filter := bson.M{"queue_type": int32(q.queueType)}
-	opts := options.FindOne().SetSort(bson.D{{"message_id", -1}})
+	opts := options.FindOne().SetSort(bson.D{{Key: "message_id", Value: -1}})
 
 	var lastMessage QueueMessageDocument
 	err := q.collection.FindOne(ctx, filter, opts).Decode(&lastMessage)
@@ -110,7 +110,7 @@ func (q *Queue) ReadMessages(ctx context.Context, lastMessageID int64, maxCount 
 	}
 
 	opts := options.Find().
-		SetSort(bson.D{{"message_id", 1}}).
+		SetSort(bson.D{{Key: "message_id", Value: 1}}).
 		SetLimit(int64(maxCount))
 
 	cursor, err := q.collection.Find(ctx, filter, opts)
