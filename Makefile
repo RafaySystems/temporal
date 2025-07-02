@@ -343,7 +343,7 @@ temporal-server-debug: $(ALL_SRC)
 
 temporal-mongodb-tool: $(ALL_SRC)
 	@printf $(COLOR) "Build temporal-mongodb-tool with CGO_ENABLED=$(CGO_ENABLED) for $(GOOS)/$(GOARCH)..."
-	CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_TAG_FLAG) -o temporal-mongodb-tool ./schema/mongodb/cmd/schema
+	CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_TAG_FLAG) -o temporal-mongodb-tool ./cmd/tools/mongodb
 
 ##### Checks #####
 goimports: fmt-imports $(GOIMPORTS)
