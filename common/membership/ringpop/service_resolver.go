@@ -96,6 +96,7 @@ func newServiceResolver(
 	rp *ringpop.Ringpop,
 	logger log.Logger,
 ) *serviceResolver {
+	logger.Info("newServiceResolver", tag.NewStringTag("service", string(service)))
 	resolver := &serviceResolver{
 		service:             service,
 		port:                port,
@@ -155,6 +156,7 @@ func (r *serviceResolver) RequestRefresh() {
 // Lookup finds the host in the ring responsible for serving the given key
 func (r *serviceResolver) Lookup(key string) (membership.HostInfo, error) {
 	ring, hosts := r.ring()
+	r.logger.Info("Lookup", tag.NewStringTag("key", key))
 	addr, found := ring.Lookup(key)
 	if !found {
 		r.RequestRefresh()
@@ -182,6 +184,7 @@ func (r *serviceResolver) AddListener(
 ) error {
 	r.listenerLock.Lock()
 	defer r.listenerLock.Unlock()
+	r.logger.Info("AddListener", tag.NewStringTag("name", name))
 	_, ok := r.listeners[name]
 	if ok {
 		return membership.ErrListenerAlreadyExist

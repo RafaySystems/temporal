@@ -3,8 +3,10 @@ package mongodb
 import (
 	"context"
 	"fmt"
+	"net"
 	"time"
 
+	uuid "github.com/pborman/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -201,23 +203,87 @@ func (s *ClusterMetadataStore) DeleteClusterMetadata(ctx context.Context, reques
 
 // GetClusterMembers retrieves cluster members
 func (s *ClusterMetadataStore) GetClusterMembers(ctx context.Context, request *p.GetClusterMembersRequest) (*p.GetClusterMembersResponse, error) {
-	// This is a simplified implementation
-	// In a real implementation, you'd handle getting cluster members
-	return &p.GetClusterMembersResponse{
-		ActiveMembers: []*p.ClusterMember{},
-	}, nil
+	filter := bson.M{}
+	if request.HostIDEquals != nil {
+		filter["host_id"] = request.HostIDEquals
+	}
+	if request.RoleEquals != 0 {
+		filter["role"] = request.RoleEquals
+	}
+	if !request.SessionStartedAfter.IsZero() {
+		filter["session_start"] = bson.M{"$gt": request.SessionStartedAfter}
+	}
+	if request.LastHeartbeatWithin > 0 {
+		now := time.Now().UTC()
+		filter["last_heartbeat"] = bson.M{"$gt": now.Add(-request.LastHeartbeatWithin)}
+	}
+	if request.RPCAddressEquals != nil {
+		filter["rpc_address"] = request.RPCAddressEquals.String()
+	}
+	filter["record_expiry"] = bson.M{"$gt": time.Now().UTC()}
+
+	opts := options.Find()
+	if request.PageSize > 0 {
+		opts.SetLimit(int64(request.PageSize))
+	}
+
+	cursor, err := s.database.Collection("cluster_members").Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var members []*p.ClusterMember
+	for cursor.Next(ctx) {
+		var doc ClusterMemberDocument
+		if err := cursor.Decode(&doc); err != nil {
+			continue
+		}
+
+		members = append(members, &p.ClusterMember{
+			HostID:        uuid.Parse(doc.HostID),
+			Role:          p.ServiceType(doc.Role),
+			RPCAddress:    net.ParseIP(doc.RPCAddress),
+			RPCPort:       doc.RPCPort,
+			SessionStart:  doc.SessionStart,
+			LastHeartbeat: doc.LastHeartbeat,
+			RecordExpiry:  doc.RecordExpiry,
+		})
+	}
+
+	return &p.GetClusterMembersResponse{ActiveMembers: members}, nil
 }
 
 // UpsertClusterMembership upserts cluster membership
 func (s *ClusterMetadataStore) UpsertClusterMembership(ctx context.Context, request *p.UpsertClusterMembershipRequest) error {
-	// This is a simplified implementation
-	// In a real implementation, you'd handle upserting cluster membership
-	return nil
+	now := time.Now().UTC()
+	recordExpiry := now.Add(request.RecordExpiry)
+	filter := bson.M{
+		"host_id": request.HostID,
+	}
+	update := bson.M{
+		"$set": bson.M{
+			"role":           request.Role,
+			"host_id":        request.HostID.String(),
+			"rpc_address":    request.RPCAddress.String(),
+			"rpc_port":       request.RPCPort,
+			"session_start":  request.SessionStart,
+			"last_heartbeat": now,
+			"record_expiry":  recordExpiry,
+		},
+		"$setOnInsert": bson.M{
+			"created_at": now,
+		},
+	}
+	_, err := s.database.Collection("cluster_members").UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
+	return err
 }
 
 // PruneClusterMembership prunes cluster membership
 func (s *ClusterMetadataStore) PruneClusterMembership(ctx context.Context, request *p.PruneClusterMembershipRequest) error {
-	// This is a simplified implementation
-	// In a real implementation, you'd handle pruning cluster membership
-	return nil
+	filter := bson.M{
+		"record_expiry": bson.M{"$lt": time.Now().UTC()},
+	}
+	_, err := s.database.Collection("cluster_members").DeleteMany(ctx, filter)
+	return err
 }
