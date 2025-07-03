@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: temporal-server
+  namespace: rafay-core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: temporal-server
+  template:
+    metadata:
+      labels:
+        app: temporal-server
+    spec:
+      containers:
+      - name: temporal-server
+        image: temporalio/auto-setup:1.29.0
+        ports:
+        - containerPort: 7233
+          name: frontend
+        - containerPort: 7243
+          name: http
+        env:
+        - name: TEMPORAL_ENVIRONMENT
+          value: "docker"
+        - name: TEMPORAL_CONFIG_DIR
+          value: "/etc/temporal/config"
+        - name: DB
+          value: "mongodb"
+        - name: MONGODB_SEEDS
+          value: "rafay-mongodb-0.rafay-mongodb-svc.rafay-core.svc.cluster.local:27017"
+        - name: MONGODB_USER
+          value: "aisrvdbuser"
+        - name: MONGODB_PWD
+          value: "aisrvdbuser"
+        - name: DYNAMIC_CONFIG_FILE_PATH
+          value: "/etc/temporal/config/dynamicconfig/development-mongodb.yaml"
+        - name: TEMPORAL_ALLOW_NO_AUTH
+          value: "true"
+        volumeMounts:
+        - name: temporal-config
+          mountPath: /etc/temporal/config
+      volumes:
+      - name: temporal-config
+        configMap:
+          name: temporal-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: temporal-frontend
+  namespace: rafay-core
+spec:
+  selector:
+    app: temporal-server
+  ports:
+  - name: frontend
+    port: 7233
+    targetPort: 7233
+  - name: http
+    port: 7243
+    targetPort: 7243
+  type: ClusterIP 

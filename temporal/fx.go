@@ -629,6 +629,8 @@ func ApplyClusterMetadataConfigProvider(
 		ctx,
 		&persistence.GetClusterMetadataRequest{ClusterName: clusterMetadata.CurrentClusterName},
 	)
+	fmt.Println("resp", resp)
+	fmt.Println("err", err)
 	switch err.(type) {
 	case nil:
 		// Update current record
@@ -725,6 +727,7 @@ func updateCurrentClusterMetadataRecord(
 	initialIndexSearchAttributes map[string]*persistencespb.IndexSearchAttributes,
 	currentClusterDBRecord *persistence.GetClusterMetadataResponse,
 ) error {
+
 	updateDBRecord := false
 	currentClusterMetadata := svc.ClusterMetadata
 	currentClusterName := currentClusterMetadata.CurrentClusterName

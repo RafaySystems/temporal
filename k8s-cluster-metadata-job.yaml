@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: temporal-cluster-metadata-setup
+  namespace: rafay-core
+spec:
+  template:
+    spec:
+      containers:
+      - name: cluster-metadata-setup
+        image: mongo:6.0
+        command:
+        - /bin/bash
+        - -c
+        - |
+          # Connect to MongoDB and insert cluster metadata
+          mongosh "mongodb://aisrvdbuser:aisrvdbuser@rafay-mongodb-0.rafay-mongodb-svc.rafay-core.svc.cluster.local:27017/admin?replicaSet=rafay-mongodb&ssl=false" --eval "
+            use temporal;
+            
+            // Delete existing cluster metadata if it exists
+            db.cluster_metadata_info.deleteOne({
+              metadata_partition: 0,
+              cluster_name: 'active'
+            });
+            
+            print('Deleted existing cluster metadata document');
+          "
+          
+          echo "Cluster metadata document deleted successfully"
+          echo "Temporal will auto-populate cluster metadata on startup"
+      restartPolicy: Never
+  backoffLimit: 3 

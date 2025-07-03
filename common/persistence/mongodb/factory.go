@@ -232,7 +232,7 @@ func (f *Factory) buildMongoURI() string {
 	}
 
 	if len(params) > 0 {
-		uri += "?" + strings.Join(params, "&")
+		uri += "/?" + strings.Join(params, "&")
 	}
 
 	return uri
