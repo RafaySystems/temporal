@@ -216,11 +216,6 @@ func (f *Factory) buildMongoURI() string {
 	// Add the connection address
 	uri += f.cfg.ConnectAddr
 
-	// Add database name
-	if f.cfg.DatabaseName != "" {
-		uri += "/" + f.cfg.DatabaseName
-	}
-
 	// Add query parameters
 	params := make([]string, 0)
 

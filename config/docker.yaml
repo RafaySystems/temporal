@@ -11,8 +11,8 @@ persistence:
     visibilityStore: visibility
 
     {{- $db := env "DB" -}}
-    {{- if not (eq $db "cassandra" "mysql8" "postgres12" "postgres12_pgx") -}}
-      {{- fail "Invalid DB value. Supported values are cassandra, mysql8, postgres12, postgres12_pgx" -}}
+    {{- if not (eq $db "cassandra" "mysql8" "postgres12" "postgres12_pgx" "mongodb") -}}
+      {{- fail "Invalid DB value. Supported values are cassandra, mysql8, postgres12, postgres12_pgx, mongodb" -}}
     {{- end }}
 
     datastores:
@@ -88,6 +88,27 @@ persistence:
                     keyFile: {{ env "SQL_CERT_KEY" }}
                     enableHostVerification: {{ default "false" (env "SQL_HOST_VERIFICATION") }}
                     serverName: {{ env "SQL_HOST_NAME" }}
+        {{- else if eq $db "mongodb" }}
+            mongodb:
+                connectAddr: {{ env "MONGODB_SEEDS" | default "localhost:27017" }}
+                databaseName: {{ default "temporal" (env "DBNAME") | quote }}
+                username: {{ env "MONGODB_USER" | quote }}
+                password: {{ env "MONGODB_PWD" | quote }}
+                maxConns: {{ default "20" (env "MONGODB_MAX_CONNS") }}
+                maxIdleConns: {{ default "20" (env "MONGODB_MAX_IDLE_CONNS") }}
+                maxConnLifetime: {{ default "1h" (env "MONGODB_MAX_CONN_TIME") }}
+                writeConcern: {{ default "majority" (env "MONGODB_WRITE_CONCERN") | quote }}
+                readConcern: {{ default "majority" (env "MONGODB_READ_CONCERN") | quote }}
+                readPreference: {{ default "primary" (env "MONGODB_READ_PREFERENCE") | quote }}
+                {{- if env "MONGODB_TLS_ENABLED" }}
+                tls:
+                    enabled: {{ default "false" (env "MONGODB_TLS_ENABLED") }}
+                    caFile: {{ env "MONGODB_CA" }}
+                    certFile: {{ env "MONGODB_CERT" }}
+                    keyFile: {{ env "MONGODB_CERT_KEY" }}
+                    enableHostVerification: {{ default "false" (env "MONGODB_HOST_VERIFICATION") }}
+                    serverName: {{ env "MONGODB_HOST_NAME" }}
+                {{- end }}
         {{- end }}
 
         visibility:
@@ -152,6 +173,31 @@ persistence:
                     keyFile: {{ env "SQL_CERT_KEY" }}
                     enableHostVerification: {{ default "false" (env "SQL_HOST_VERIFICATION") }}
                     serverName: {{ env "SQL_HOST_NAME" }}
+            {{- else if eq $db "mongodb" }}
+            mongodb:
+                {{ $visibility_seeds := coalesce (env "VISIBILITY_MONGODB_SEEDS") (env "MONGODB_SEEDS") }}
+                {{ $visibility_port := coalesce (env "VISIBILITY_MONGODB_PORT") (env "MONGODB_PORT") "27017" }}
+                {{ $visibility_user := coalesce (env "VISIBILITY_MONGODB_USER") (env "MONGODB_USER") }}
+                {{ $visibility_pwd := coalesce (env "VISIBILITY_MONGODB_PWD") (env "MONGODB_PWD") }}
+                connectAddr: {{ $visibility_seeds | default "localhost:27017" }}
+                databaseName: {{ default "temporal_visibility" (env "VISIBILITY_DBNAME") | quote }}
+                username: {{ $visibility_user | quote }}
+                password: {{ $visibility_pwd | quote }}
+                maxConns: {{ default "10" (env "MONGODB_VIS_MAX_CONNS") }}
+                maxIdleConns: {{ default "10" (env "MONGODB_VIS_MAX_IDLE_CONNS") }}
+                maxConnLifetime: {{ default "1h" (env "MONGODB_VIS_MAX_CONN_TIME") }}
+                writeConcern: {{ default "majority" (env "MONGODB_WRITE_CONCERN") | quote }}
+                readConcern: {{ default "majority" (env "MONGODB_READ_CONCERN") | quote }}
+                readPreference: {{ default "primary" (env "MONGODB_READ_PREFERENCE") | quote }}
+                {{- if env "MONGODB_TLS_ENABLED" }}
+                tls:
+                    enabled: {{ default "false" (env "MONGODB_TLS_ENABLED") }}
+                    caFile: {{ env "MONGODB_CA" }}
+                    certFile: {{ env "MONGODB_CERT" }}
+                    keyFile: {{ env "MONGODB_CERT_KEY" }}
+                    enableHostVerification: {{ default "false" (env "MONGODB_HOST_VERIFICATION") }}
+                    serverName: {{ env "MONGODB_HOST_NAME" }}
+                {{- end }}
             {{- else -}}
               {{- fail "No visibility configured. Cassandra is no longer supported for visibility." -}}
             {{- end }}
