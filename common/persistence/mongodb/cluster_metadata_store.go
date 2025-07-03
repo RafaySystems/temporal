@@ -26,12 +26,11 @@ type (
 
 	// ClusterMetadataDocument represents a cluster metadata document in MongoDB
 	ClusterMetadataDocument struct {
-		ClusterName             string    `bson:"_id"`
-		ClusterMetadata         []byte    `bson:"cluster_metadata,omitempty"`
-		ClusterMetadataEncoding string    `bson:"cluster_metadata_encoding,omitempty"`
-		Version                 int64     `bson:"version"`
-		CreatedAt               time.Time `bson:"created_at"`
-		UpdatedAt               time.Time `bson:"updated_at"`
+		MetadataPartition int    `bson:"metadata_partition"`
+		ClusterName       string `bson:"cluster_name"`
+		Data              []byte `bson:"data"`
+		DataEncoding      string `bson:"data_encoding"`
+		Version           int64  `bson:"version"`
 	}
 
 	// ClusterMemberDocument represents a cluster member document in MongoDB
@@ -52,7 +51,7 @@ func NewClusterMetadataStore(database *mongo.Database, logger log.Logger) *Clust
 	return &ClusterMetadataStore{
 		client:     database.Client(),
 		database:   database,
-		collection: database.Collection("cluster_metadata"),
+		collection: database.Collection("cluster_metadata_info"),
 		logger:     logger,
 	}
 }
@@ -72,7 +71,7 @@ func (s *ClusterMetadataStore) ListClusterMetadata(ctx context.Context, request 
 	filter := bson.M{}
 
 	opts := options.Find().
-		SetSort(bson.D{{Key: "_id", Value: 1}}).
+		SetSort(bson.D{{Key: "cluster_name", Value: 1}}).
 		SetLimit(int64(request.PageSize))
 
 	// Handle pagination if page token is provided
@@ -97,14 +96,14 @@ func (s *ClusterMetadataStore) ListClusterMetadata(ctx context.Context, request 
 			continue
 		}
 
-		encodingType, err := enumspb.EncodingTypeFromString(doc.ClusterMetadataEncoding)
+		encodingType, err := enumspb.EncodingTypeFromString(doc.DataEncoding)
 		if err != nil {
 			encodingType = enumspb.ENCODING_TYPE_UNSPECIFIED
 		}
 
 		clusterMetadata = append(clusterMetadata, &p.InternalGetClusterMetadataResponse{
 			ClusterMetadata: &commonpb.DataBlob{
-				Data:         doc.ClusterMetadata,
+				Data:         doc.Data,
 				EncodingType: encodingType,
 			},
 			Version: doc.Version,
@@ -119,7 +118,8 @@ func (s *ClusterMetadataStore) ListClusterMetadata(ctx context.Context, request 
 // GetClusterMetadata retrieves cluster metadata
 func (s *ClusterMetadataStore) GetClusterMetadata(ctx context.Context, request *p.InternalGetClusterMetadataRequest) (*p.InternalGetClusterMetadataResponse, error) {
 	filter := bson.M{
-		"_id": request.ClusterName,
+		"metadata_partition": 0,
+		"cluster_name":       request.ClusterName,
 	}
 
 	var doc ClusterMetadataDocument
@@ -133,14 +133,14 @@ func (s *ClusterMetadataStore) GetClusterMetadata(ctx context.Context, request *
 		return nil, fmt.Errorf("failed to get cluster metadata: %w", err)
 	}
 
-	encodingType, err := enumspb.EncodingTypeFromString(doc.ClusterMetadataEncoding)
+	encodingType, err := enumspb.EncodingTypeFromString(doc.DataEncoding)
 	if err != nil {
 		encodingType = enumspb.ENCODING_TYPE_UNSPECIFIED
 	}
 
 	return &p.InternalGetClusterMetadataResponse{
 		ClusterMetadata: &commonpb.DataBlob{
-			Data:         doc.ClusterMetadata,
+			Data:         doc.Data,
 			EncodingType: encodingType,
 		},
 		Version: doc.Version,
@@ -149,26 +149,22 @@ func (s *ClusterMetadataStore) GetClusterMetadata(ctx context.Context, request *
 
 // SaveClusterMetadata saves cluster metadata
 func (s *ClusterMetadataStore) SaveClusterMetadata(ctx context.Context, request *p.InternalSaveClusterMetadataRequest) (bool, error) {
-	now := time.Now()
 	doc := &ClusterMetadataDocument{
-		ClusterName:             request.ClusterName,
-		ClusterMetadata:         request.ClusterMetadata.Data,
-		ClusterMetadataEncoding: request.ClusterMetadata.EncodingType.String(),
-		Version:                 request.Version,
-		CreatedAt:               now,
-		UpdatedAt:               now,
+		MetadataPartition: 0,
+		ClusterName:       request.ClusterName,
+		Data:              request.ClusterMetadata.Data,
+		DataEncoding:      request.ClusterMetadata.EncodingType.String(),
+		Version:           request.Version,
 	}
 
 	// Use upsert to handle both create and update cases
 	filter := bson.M{
-		"_id": doc.ClusterName,
+		"metadata_partition": doc.MetadataPartition,
+		"cluster_name":       doc.ClusterName,
 	}
 
 	update := bson.M{
 		"$set": doc,
-		"$setOnInsert": bson.M{
-			"created_at": now,
-		},
 	}
 
 	opts := options.Update().SetUpsert(true)
@@ -183,7 +179,8 @@ func (s *ClusterMetadataStore) SaveClusterMetadata(ctx context.Context, request 
 // DeleteClusterMetadata deletes cluster metadata
 func (s *ClusterMetadataStore) DeleteClusterMetadata(ctx context.Context, request *p.InternalDeleteClusterMetadataRequest) error {
 	filter := bson.M{
-		"_id": request.ClusterName,
+		"metadata_partition": 0,
+		"cluster_name":       request.ClusterName,
 	}
 
 	_, err := s.collection.DeleteOne(ctx, filter)
