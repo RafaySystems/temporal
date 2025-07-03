@@ -27,11 +27,12 @@ type (
 
 	// NamespaceDocument represents a namespace document in MongoDB
 	NamespaceDocument struct {
-		ID                  string    `bson:"_id"`
+		NamespacesPartition int       `bson:"namespaces_partition"`
 		Name                string    `bson:"name"`
-		Namespace           []byte    `bson:"namespace,omitempty"`
-		NamespaceEncoding   string    `bson:"namespace_encoding,omitempty"`
-		IsGlobal            bool      `bson:"is_global"`
+		ID                  []byte    `bson:"id"`
+		Detail              []byte    `bson:"detail,omitempty"`
+		DetailEncoding      string    `bson:"detail_encoding,omitempty"`
+		IsGlobalNamespace   bool      `bson:"is_global_namespace"`
 		NotificationVersion int64     `bson:"notification_version"`
 		CreatedAt           time.Time `bson:"created_at"`
 		UpdatedAt           time.Time `bson:"updated_at"`
@@ -62,11 +63,12 @@ func (s *MetadataStore) GetName() string {
 func (s *MetadataStore) CreateNamespace(ctx context.Context, request *p.InternalCreateNamespaceRequest) (*p.CreateNamespaceResponse, error) {
 	now := time.Now()
 	doc := &NamespaceDocument{
-		ID:                  request.ID,
+		NamespacesPartition: 0, // Default partition for namespaces
 		Name:                request.Name,
-		Namespace:           request.Namespace.Data,
-		NamespaceEncoding:   request.Namespace.EncodingType.String(),
-		IsGlobal:            request.IsGlobal,
+		ID:                  []byte(request.ID), // Convert string ID to bytes
+		Detail:              request.Namespace.Data,
+		DetailEncoding:      request.Namespace.EncodingType.String(),
+		IsGlobalNamespace:   request.IsGlobal,
 		NotificationVersion: 1, // Start with version 1
 		CreatedAt:           now,
 		UpdatedAt:           now,
@@ -74,14 +76,15 @@ func (s *MetadataStore) CreateNamespace(ctx context.Context, request *p.Internal
 
 	// Use upsert to handle both create and update cases
 	filter := bson.M{
-		"_id": doc.ID,
+		"namespaces_partition": doc.NamespacesPartition,
+		"name":                 doc.Name,
 	}
 
 	setMap := bson.M{
-		"name":                 doc.Name,
-		"namespace":            doc.Namespace,
-		"namespace_encoding":   doc.NamespaceEncoding,
-		"is_global":            doc.IsGlobal,
+		"id":                   doc.ID,
+		"detail":               doc.Detail,
+		"detail_encoding":      doc.DetailEncoding,
+		"is_global_namespace":  doc.IsGlobalNamespace,
 		"notification_version": doc.NotificationVersion,
 		"updated_at":           doc.UpdatedAt,
 	}
@@ -105,7 +108,7 @@ func (s *MetadataStore) CreateNamespace(ctx context.Context, request *p.Internal
 func (s *MetadataStore) GetNamespace(ctx context.Context, request *p.GetNamespaceRequest) (*p.InternalGetNamespaceResponse, error) {
 	var filter bson.M
 	if request.ID != "" {
-		filter = bson.M{"_id": request.ID}
+		filter = bson.M{"id": []byte(request.ID)}
 	} else if request.Name != "" {
 		filter = bson.M{"name": request.Name}
 	} else {
@@ -123,17 +126,17 @@ func (s *MetadataStore) GetNamespace(ctx context.Context, request *p.GetNamespac
 		return nil, fmt.Errorf("failed to get namespace: %w", err)
 	}
 
-	encodingType, err := enumspb.EncodingTypeFromString(doc.NamespaceEncoding)
+	encodingType, err := enumspb.EncodingTypeFromString(doc.DetailEncoding)
 	if err != nil {
 		encodingType = enumspb.ENCODING_TYPE_UNSPECIFIED
 	}
 
 	return &p.InternalGetNamespaceResponse{
 		Namespace: &commonpb.DataBlob{
-			Data:         doc.Namespace,
+			Data:         doc.Detail,
 			EncodingType: encodingType,
 		},
-		IsGlobal:            doc.IsGlobal,
+		IsGlobal:            doc.IsGlobalNamespace,
 		NotificationVersion: doc.NotificationVersion,
 	}, nil
 }
@@ -141,15 +144,15 @@ func (s *MetadataStore) GetNamespace(ctx context.Context, request *p.GetNamespac
 // UpdateNamespace updates a namespace
 func (s *MetadataStore) UpdateNamespace(ctx context.Context, request *p.InternalUpdateNamespaceRequest) error {
 	filter := bson.M{
-		"_id": request.Id,
+		"id": []byte(request.Id),
 	}
 
 	update := bson.M{
 		"$set": bson.M{
 			"name":                 request.Name,
-			"namespace":            request.Namespace.Data,
-			"namespace_encoding":   request.Namespace.EncodingType.String(),
-			"is_global":            request.IsGlobal,
+			"detail":               request.Namespace.Data,
+			"detail_encoding":      request.Namespace.EncodingType.String(),
+			"is_global_namespace":  request.IsGlobal,
 			"notification_version": request.NotificationVersion,
 			"updated_at":           time.Now(),
 		},
@@ -265,17 +268,17 @@ func (s *MetadataStore) ListNamespaces(ctx context.Context, request *p.InternalL
 			continue
 		}
 
-		encodingType, err := enumspb.EncodingTypeFromString(doc.NamespaceEncoding)
+		encodingType, err := enumspb.EncodingTypeFromString(doc.DetailEncoding)
 		if err != nil {
 			encodingType = enumspb.ENCODING_TYPE_UNSPECIFIED
 		}
 
 		namespaces = append(namespaces, &p.InternalGetNamespaceResponse{
 			Namespace: &commonpb.DataBlob{
-				Data:         doc.Namespace,
+				Data:         doc.Detail,
 				EncodingType: encodingType,
 			},
-			IsGlobal:            doc.IsGlobal,
+			IsGlobal:            doc.IsGlobalNamespace,
 			NotificationVersion: doc.NotificationVersion,
 		})
 	}
