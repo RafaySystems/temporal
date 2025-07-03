@@ -187,6 +187,38 @@ func (s *VisibilityStore) ValidateCustomSearchAttributes(
 	return searchAttributes, nil
 }
 
+// Helper to convert VisibilityDocument to $set and $setOnInsert maps for MongoDB upsert
+func visibilityDocToSetMaps(doc *VisibilityDocument) (bson.M, bson.M) {
+	setMap := bson.M{
+		"namespace_id":           doc.NamespaceID,
+		"workflow_id":            doc.WorkflowID,
+		"run_id":                 doc.RunID,
+		"workflow_type_name":     doc.WorkflowTypeName,
+		"start_time":             doc.StartTime,
+		"execution_time":         doc.ExecutionTime,
+		"close_time":             doc.CloseTime,
+		"status":                 doc.Status,
+		"history_length":         doc.HistoryLength,
+		"history_size_bytes":     doc.HistorySizeBytes,
+		"execution_duration":     doc.ExecutionDuration,
+		"state_transition_count": doc.StateTransitionCount,
+		"memo":                   doc.Memo,
+		"memo_encoding":          doc.MemoEncoding,
+		"task_queue":             doc.TaskQueue,
+		"search_attributes":      doc.SearchAttributes,
+		"parent_workflow_id":     doc.ParentWorkflowID,
+		"parent_run_id":          doc.ParentRunID,
+		"root_workflow_id":       doc.RootWorkflowID,
+		"root_run_id":            doc.RootRunID,
+		"version":                doc.Version,
+		"updated_at":             doc.UpdatedAt,
+	}
+	setOnInsertMap := bson.M{
+		"created_at": doc.CreatedAt,
+	}
+	return setMap, setOnInsertMap
+}
+
 func (s *VisibilityStore) RecordWorkflowExecutionStarted(
 	ctx context.Context,
 	request *store.InternalRecordWorkflowExecutionStartedRequest,
@@ -205,10 +237,12 @@ func (s *VisibilityStore) RecordWorkflowExecutionStarted(
 				"workflow_id":  request.WorkflowID,
 				"run_id":       request.RunID,
 			}
+			setMap, setOnInsertMap := visibilityDocToSetMaps(doc)
 			update := bson.M{
-				"$set": doc,
+				"$set":         setMap,
+				"$setOnInsert": setOnInsertMap,
 			}
-			_, err = s.collection.UpdateOne(ctx, filter, update)
+			_, err = s.collection.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
 		}
 		return err
 	}
@@ -237,8 +271,10 @@ func (s *VisibilityStore) RecordWorkflowExecutionClosed(
 		"run_id":       request.RunID,
 	}
 
+	setMap, setOnInsertMap := visibilityDocToSetMaps(doc)
 	update := bson.M{
-		"$set": doc,
+		"$set":         setMap,
+		"$setOnInsert": setOnInsertMap,
 	}
 
 	opts := options.Update().SetUpsert(true)
@@ -269,8 +305,10 @@ func (s *VisibilityStore) UpsertWorkflowExecution(
 		"run_id":       request.RunID,
 	}
 
+	setMap, setOnInsertMap := visibilityDocToSetMaps(doc)
 	update := bson.M{
-		"$set": doc,
+		"$set":         setMap,
+		"$setOnInsert": setOnInsertMap,
 	}
 
 	opts := options.Update().SetUpsert(true)

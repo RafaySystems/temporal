@@ -27,11 +27,12 @@ type (
 
 	// ClusterMetadataDocument represents a cluster metadata document in MongoDB
 	ClusterMetadataDocument struct {
-		MetadataPartition int    `bson:"metadata_partition"`
-		ClusterName       string `bson:"cluster_name"`
-		Data              []byte `bson:"data"`
-		DataEncoding      string `bson:"data_encoding"`
-		Version           int64  `bson:"version"`
+		MetadataPartition int       `bson:"metadata_partition"`
+		ClusterName       string    `bson:"cluster_name"`
+		Data              []byte    `bson:"data"`
+		DataEncoding      string    `bson:"data_encoding"`
+		Version           int64     `bson:"version"`
+		CreatedAt         time.Time `bson:"created_at"`
 	}
 
 	// ClusterMemberDocument represents a cluster member document in MongoDB
@@ -148,12 +149,14 @@ func (s *ClusterMetadataStore) GetClusterMetadata(ctx context.Context, request *
 
 // SaveClusterMetadata saves cluster metadata
 func (s *ClusterMetadataStore) SaveClusterMetadata(ctx context.Context, request *p.InternalSaveClusterMetadataRequest) (bool, error) {
+	now := time.Now()
 	doc := &ClusterMetadataDocument{
 		MetadataPartition: 0,
 		ClusterName:       request.ClusterName,
 		Data:              request.ClusterMetadata.Data,
 		DataEncoding:      request.ClusterMetadata.EncodingType.String(),
 		Version:           request.Version,
+		CreatedAt:         now,
 	}
 
 	// Use upsert to handle both create and update cases
@@ -162,8 +165,14 @@ func (s *ClusterMetadataStore) SaveClusterMetadata(ctx context.Context, request 
 		"cluster_name":       doc.ClusterName,
 	}
 
+	setMap := bson.M{
+		"data":          doc.Data,
+		"data_encoding": doc.DataEncoding,
+		"version":       doc.Version,
+	}
 	update := bson.M{
-		"$set": doc,
+		"$set":         setMap,
+		"$setOnInsert": bson.M{"created_at": doc.CreatedAt},
 	}
 
 	opts := options.Update().SetUpsert(true)
