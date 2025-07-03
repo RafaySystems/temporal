@@ -77,11 +77,17 @@ func (s *MetadataStore) CreateNamespace(ctx context.Context, request *p.Internal
 		"_id": doc.ID,
 	}
 
+	setMap := bson.M{
+		"name":                 doc.Name,
+		"namespace":            doc.Namespace,
+		"namespace_encoding":   doc.NamespaceEncoding,
+		"is_global":            doc.IsGlobal,
+		"notification_version": doc.NotificationVersion,
+		"updated_at":           doc.UpdatedAt,
+	}
 	update := bson.M{
-		"$set": doc,
-		"$setOnInsert": bson.M{
-			"created_at": now,
-		},
+		"$set":         setMap,
+		"$setOnInsert": bson.M{"created_at": doc.CreatedAt},
 	}
 
 	opts := options.Update().SetUpsert(true)
