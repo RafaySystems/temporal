@@ -3,6 +3,7 @@
 package client
 
 import (
+	"fmt"
 	"time"
 
 	"go.temporal.io/api/workflowservice/v1"
@@ -16,6 +17,7 @@ import (
 	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/dynamicconfig"
 	"go.temporal.io/server/common/log"
+	logtag "go.temporal.io/server/common/log/tag"
 	"go.temporal.io/server/common/membership"
 	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/namespace"
@@ -128,6 +130,8 @@ func (cf *rpcClientFactory) NewMatchingClientWithTimeout(
 		return nil, err
 	}
 
+	cf.logger.Info("NewMatchingClientWithTimeout", logtag.NewAnyTag("resolver", resolver))
+
 	keyResolver := newServiceKeyResolver(resolver)
 	clientProvider := func(clientKey string) (interface{}, error) {
 		connection := cf.rpcFactory.CreateMatchingGRPCConnection(clientKey)
@@ -154,6 +158,7 @@ func (cf *rpcClientFactory) NewRemoteFrontendClientWithTimeout(
 	timeout time.Duration,
 	longPollTimeout time.Duration,
 ) (grpc.ClientConnInterface, workflowservice.WorkflowServiceClient) {
+	cf.logger.Info("NewRemoteFrontendClientWithTimeout", logtag.NewStringTag("rpcAddress", rpcAddress))
 	connection := cf.rpcFactory.CreateRemoteFrontendGRPCConnection(rpcAddress)
 	client := workflowservice.NewWorkflowServiceClient(connection)
 	return connection, cf.newFrontendClient(client, timeout, longPollTimeout)
@@ -173,6 +178,7 @@ func (cf *rpcClientFactory) NewRemoteAdminClientWithTimeout(
 	timeout time.Duration,
 	largeTimeout time.Duration,
 ) adminservice.AdminServiceClient {
+	cf.logger.Info("NewRemoteAdminClientWithTimeout", logtag.NewStringTag("rpcAddress", rpcAddress))
 	connection := cf.rpcFactory.CreateRemoteFrontendGRPCConnection(rpcAddress)
 	client := adminservice.NewAdminServiceClient(connection)
 	return cf.newAdminClient(client, timeout, largeTimeout)
@@ -229,6 +235,7 @@ func (r *serviceKeyResolverImpl) GetAllAddresses() ([]string, error) {
 	var all []string
 
 	for _, host := range r.resolver.Members() {
+		fmt.Println("host", host.GetAddress())
 		all = append(all, host.GetAddress())
 	}
 
