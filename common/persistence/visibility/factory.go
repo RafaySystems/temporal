@@ -10,6 +10,7 @@ import (
 	"go.temporal.io/server/common/persistence/visibility/manager"
 	"go.temporal.io/server/common/persistence/visibility/store"
 	"go.temporal.io/server/common/persistence/visibility/store/elasticsearch"
+	"go.temporal.io/server/common/persistence/visibility/store/mongodb"
 	"go.temporal.io/server/common/persistence/visibility/store/sql"
 	"go.temporal.io/server/common/resolver"
 	"go.temporal.io/server/common/searchattribute"
@@ -245,6 +246,15 @@ func newVisibilityStoreFromDataStoreConfig(
 			visibilityEnableManualPagination,
 			metricsHandler,
 			logger,
+		)
+	} else if dsConfig.MongoDB != nil {
+		visStore, err = mongodb.NewMongoDBVisibilityStore(
+			*dsConfig.MongoDB,
+			persistenceResolver,
+			searchAttributesProvider,
+			searchAttributesMapperProvider,
+			logger,
+			metricsHandler,
 		)
 	} else if dsConfig.CustomDataStoreConfig != nil {
 		if customVisibilityStoreFactory == nil {

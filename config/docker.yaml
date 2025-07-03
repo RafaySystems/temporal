@@ -174,15 +174,14 @@ persistence:
                     enableHostVerification: {{ default "false" (env "SQL_HOST_VERIFICATION") }}
                     serverName: {{ env "SQL_HOST_NAME" }}
             {{- else if eq $db "mongodb" }}
+            # MongoDB doesn't have a visibility store implementation yet
+            # Use the same MongoDB database for both default and visibility stores
+            # This is a workaround until MongoDB visibility store is implemented
             mongodb:
-                {{ $visibility_seeds := coalesce (env "VISIBILITY_MONGODB_SEEDS") (env "MONGODB_SEEDS") }}
-                {{ $visibility_port := coalesce (env "VISIBILITY_MONGODB_PORT") (env "MONGODB_PORT") "27017" }}
-                {{ $visibility_user := coalesce (env "VISIBILITY_MONGODB_USER") (env "MONGODB_USER") }}
-                {{ $visibility_pwd := coalesce (env "VISIBILITY_MONGODB_PWD") (env "MONGODB_PWD") }}
-                connectAddr: {{ $visibility_seeds | default "localhost:27017" }}
-                databaseName: {{ default "temporal_visibility" (env "VISIBILITY_DBNAME") | quote }}
-                username: {{ $visibility_user | quote }}
-                password: {{ $visibility_pwd | quote }}
+                connectAddr: {{ env "MONGODB_SEEDS" | default "localhost:27017" }}
+                databaseName: {{ default "temporal" (env "DBNAME") | quote }}
+                username: {{ env "MONGODB_USER" | quote }}
+                password: {{ env "MONGODB_PWD" | quote }}
                 maxConns: {{ default "10" (env "MONGODB_VIS_MAX_CONNS") }}
                 maxIdleConns: {{ default "10" (env "MONGODB_VIS_MAX_IDLE_CONNS") }}
                 maxConnLifetime: {{ default "1h" (env "MONGODB_VIS_MAX_CONN_TIME") }}
